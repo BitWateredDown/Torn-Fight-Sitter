@@ -6,8 +6,8 @@
 // @author       Copilot mostly
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
 // @grant        none
-// @updateURL    https://gist.githubusercontent.com/alexbeissel3-jpg/d8da2a0d63b274144593637391c1cfd0/raw/TornOCScanner.user.js
-// @downloadURL  https://gist.githubusercontent.com/alexbeissel3-jpg/d8da2a0d63b274144593637391c1cfd0/raw/TornOCScanner.user.js
+// @updateURL    https://raw.githubusercontent.com/BitWateredDown/Torn-Fight-Sitter/refs/heads/main/Fight_sitter.js
+// @downloadURL  https://raw.githubusercontent.com/BitWateredDown/Torn-Fight-Sitter/refs/heads/main/Fight_sitter.js
 
 // ==/UserScript==
 
@@ -112,4 +112,5 @@
 
     init();
 })();
+
 
