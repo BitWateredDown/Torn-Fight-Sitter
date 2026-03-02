@@ -71,7 +71,6 @@
 
             if (timeLeft <= 0) {
                 clearInterval(timer);
-                // ❌ removed: location.reload();
                 countdown.textContent = "HIT 'EM!";
             }
         }, 1000);
@@ -112,5 +111,6 @@
 
     init();
 })();
+
 
 
