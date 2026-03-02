@@ -1,10 +1,14 @@
 // ==UserScript==
-// @name         Jim Torn Fight Countdown + Refresh (Stable)
+// @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
 // @version      1.7
 // @description  Shows a 30s countdown in the green fight dialog and a refresh button when fight is unavailable
+// @author       Copilot mostly
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
 // @grant        none
+// @updateURL    https://gist.githubusercontent.com/alexbeissel3-jpg/d8da2a0d63b274144593637391c1cfd0/raw/TornOCScanner.user.js
+// @downloadURL  https://gist.githubusercontent.com/alexbeissel3-jpg/d8da2a0d63b274144593637391c1cfd0/raw/TornOCScanner.user.js
+
 // ==/UserScript==
 
 (function() {
@@ -108,3 +112,4 @@
 
     init();
 })();
+
