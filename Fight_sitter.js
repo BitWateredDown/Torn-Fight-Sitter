@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Shows a 30s countdown in the green fight dialog and a refresh button when fight is unavailable + moves Join Fight button down one row
 // @author       Copilot mostly
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
@@ -47,6 +47,30 @@
         btn.dataset.movedDown = "1";
     }
 
+    function updateJoinFightButton(btn) {
+        if (!btn) return;
+
+        // Find the participants list
+        const list = document.querySelector("ul.participants___cw7GQ");
+        if (!list) return;
+
+        const hasPlayers = list.querySelectorAll("li").length > 0;
+        const isJoin = /join fight/i.test(btn.textContent);
+
+        if (!isJoin) return; // Only modify Join Fight buttons
+
+        if (hasPlayers) {
+            // Someone is already in the fight → red Join fight
+            btn.dataset.movedDown = "1"
+            btn.textContent = "Join fight";
+            btn.style.color = "#cc0000";
+        } else {
+            // No participants → green Save fight
+            btn.textContent = "Save fight";
+            btn.style.color = "#00cc00";
+        }
+    }
+
     function createRefreshButton() {
         const btn = document.createElement("button");
         btn.textContent = "Refresh";
@@ -81,7 +105,7 @@
 
             if (timeLeft <= 0) {
                 clearInterval(timer);
-                countdown.textContent = "HIT 'EM!";
+                countdown.textContent = "FREE TARGET!";
             }
         }, 1000);
     }
@@ -98,8 +122,9 @@
             const fightBtn = findFightButton();
 
             if (fightBtn) {
-                moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
-
+                // moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
+                //updateJoinFightButton(fightBtn); // <--- NEW
+                if (fightBtn) updateJoinFightButton(fightBtn);
                 const greenDialog = findGreenDialog();
                 if (greenDialog) addCountdown(greenDialog);
             } else {
@@ -113,8 +138,8 @@
         // Run immediately on load
         const fightBtn = findFightButton();
         if (fightBtn) {
-            moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
-
+            // moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
+            updateJoinFightButton(fightBtn); // <--- NEW
             const greenDialog = findGreenDialog();
             if (greenDialog) addCountdown(greenDialog);
         } else {
@@ -125,3 +150,4 @@
 
     init();
 })();
+
