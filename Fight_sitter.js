@@ -1,20 +1,18 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      1.7
-// @description  Shows a 30s countdown in the green fight dialog and a refresh button when fight is unavailable
+// @version      1.8
+// @description  Shows a 30s countdown in the green fight dialog and a refresh button when fight is unavailable + moves Join Fight button down one row
 // @author       Copilot mostly
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/BitWateredDown/Torn-Fight-Sitter/refs/heads/main/Fight_sitter.js
 // @downloadURL  https://raw.githubusercontent.com/BitWateredDown/Torn-Fight-Sitter/refs/heads/main/Fight_sitter.js
-
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // Finds the fight button reliably
     function findFightButton() {
         return (
             document.querySelector('button[data-action="start"]') ||
@@ -24,17 +22,29 @@
         );
     }
 
-    // Finds ANY dialog container that wraps the fight button
     function findGreenDialog() {
         const btn = findFightButton();
         if (!btn) return null;
         return btn.closest("div[class*='dialog']");
     }
 
-    // Finds ANY red dialog (hospital / unavailable)
     function findRedDialog() {
         return [...document.querySelectorAll("div[class*='dialog']")]
             .find(d => /red/i.test(d.className));
+    }
+
+    // --- NEW: Move Join Fight button down one row ---
+    function moveJoinFightButtonDown(btn) {
+        if (!btn || btn.dataset.movedDown) return;
+
+        const row = btn.closest(".row, .clearfix, div");
+        if (!row) return;
+
+        const nextRow = row.nextElementSibling;
+        if (!nextRow) return;
+
+        nextRow.after(row); // Move the whole row down one position
+        btn.dataset.movedDown = "1";
     }
 
     function createRefreshButton() {
@@ -88,6 +98,8 @@
             const fightBtn = findFightButton();
 
             if (fightBtn) {
+                moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
+
                 const greenDialog = findGreenDialog();
                 if (greenDialog) addCountdown(greenDialog);
             } else {
@@ -101,6 +113,8 @@
         // Run immediately on load
         const fightBtn = findFightButton();
         if (fightBtn) {
+            moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
+
             const greenDialog = findGreenDialog();
             if (greenDialog) addCountdown(greenDialog);
         } else {
@@ -111,6 +125,3 @@
 
     init();
 })();
-
-
-
