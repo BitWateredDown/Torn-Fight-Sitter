@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      1.95
+// @version      2.0
 // @description  30s countdown fight dialog timer, refresh button if fight unavailable, changes Join Fight to save fight attacking an attacker
 // @author       Copilot mostly
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
@@ -33,43 +33,55 @@
             .find(d => /red/i.test(d.className));
     }
 
-    // --- NEW: Move Join Fight button down one row ---
     function moveJoinFightButtonDown(btn) {
-        if (!btn || btn.dataset.movedDown) return;
-
-        const row = btn.closest(".row, .clearfix, div");
+        if (!btn || btn.dataset.joinMoved) return;
+    
+        // Find the row the button is inside
+        const row = btn.closest(".charge-row, .row, .clearfix, div");
         if (!row) return;
-
+    
         const nextRow = row.nextElementSibling;
         if (!nextRow) return;
-
-        nextRow.after(row); // Move the whole row down one position
-        btn.dataset.movedDown = "1";
+    
+        // Move the entire row down one slot
+        nextRow.after(row);
+    
+        // Prevent repeated moves
+        btn.dataset.joinMoved = "1";
     }
 
-    function updateJoinFightButton(btn) {
-        if (!btn) return;
 
-        // Find the participants list
-        const list = document.querySelector("ul.participants___cw7GQ");
-        if (!list) return;
+function updateJoinFightButton(btn) {
+    if (!btn) return;
 
-        const hasPlayers = list.querySelectorAll("li").length > 0;
-        const isJoin = /join fight/i.test(btn.textContent);
+    const list = document.querySelector("ul.participants___cw7GQ");
+    if (!list) return;
 
-        if (!isJoin) return; // Only modify Join Fight buttons
+    const hasPlayers = list.querySelectorAll("li").length > 0;
+    const current = btn.textContent.trim().toLowerCase();
 
-        if (hasPlayers) {
-            // Someone is already in the fight → red Join fight
-            btn.dataset.movedDown = "1"
+    if (hasPlayers) {
+        // RED state — someone is already in the fight
+        if (current !== "join fight") {
             btn.textContent = "Join fight";
-            btn.style.color = "#cc0000";
-        } else {
-            // No participants → green Save fight
-            btn.textContent = "Save fight";
-            btn.style.color = "#00cc00";
         }
+        btn.style.color = "#cc0000";
+
+        // Move the button down one row so you don't accidentally click it
+        moveJoinFightButtonDown(btn);
+
+    } else {
+        // GREEN state — no participants
+        if (current !== "save fight") {
+            btn.textContent = "Save fight";
+        }
+        btn.style.color = "#00cc00";
+
+        // Reset movement so next red state can move it again
+        delete btn.dataset.joinMoved;
     }
+}
+
 
     function createRefreshButton() {
         const btn = document.createElement("button");
@@ -150,5 +162,6 @@
 
     init();
 })();
+
 
 
