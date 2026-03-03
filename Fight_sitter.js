@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      1.9
-// @description  Shows a 30s countdown in the green fight dialog and a refresh button when fight is unavailable + moves Join Fight button down one row
+// @version      1.95
+// @description  30s countdown fight dialog timer, refresh button if fight unavailable, changes Join Fight to save fight attacking an attacker
 // @author       Copilot mostly
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
 // @grant        none
@@ -150,4 +150,5 @@
 
     init();
 })();
+
 
