@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      3.0
 // @description  30s countdown fight dialog timer, refresh button if fight unavailable, changes Join Fight to save fight attacking an attacker
 // @author       Copilot mostly and Mr_Chips
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
@@ -10,182 +10,233 @@
 // @downloadURL  https://raw.githubusercontent.com/BitWateredDown/Torn-Fight-Sitter/refs/heads/main/Fight_sitter.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
+
     let observer = null;
     let stopped = false;
-    
+
+    const scriptIntervals = new Set();
+
+    function setScriptInterval(fn, ms) {
+        const id = setInterval(fn, ms);
+        scriptIntervals.add(id);
+        return id;
+    }
+
+    function clearScriptInterval(id) {
+        clearInterval(id);
+        scriptIntervals.delete(id);
+    }
+
     function stopScript() {
         if (stopped) return;
         stopped = true;
-    
-        if (observer) observer.disconnect();
-    
-        // Remove all intervals created by this script
-        const highest = setInterval(() => {}, 0);
-        for (let i = 0; i <= highest; i++) clearInterval(i);
-    
-        console.log("Fight Sitter stopped.");
+
+        if (observer) {
+            observer.disconnect();
+            observer = null;
+        }
+
+        scriptIntervals.forEach(id => clearInterval(id));
+        scriptIntervals.clear();
+
+        console.log('[Fight Sitter] Stopped.');
     }
 
+    // ---------- DOM helpers ----------
+
     function findFightButton() {
-        return (
-            document.querySelector('button[data-action="start"]') ||
-            [...document.querySelectorAll("button")].find(b =>
-                /start fight|join fight/i.test(b.textContent)
-            )
-        );
+        // Primary selector Torn uses
+        let btn = document.querySelector('button[data-action="start"]');
+        if (btn) return btn;
+
+        // Fallback: any button with relevant text
+        return [...document.querySelectorAll('button')].find(b =>
+            /start fight|join fight|save fight/i.test(b.textContent)
+        ) || null;
     }
 
     function findGreenDialog() {
         const btn = findFightButton();
         if (!btn) return null;
-        return btn.closest("div[class*='dialog']");
+
+        const dialog = btn.closest("div[class*='dialog']");
+        if (!dialog) return null;
+
+        // Heuristic: not a red dialog
+        if (/red/i.test(dialog.className)) return null;
+
+        return dialog;
     }
 
     function findRedDialog() {
-        return [...document.querySelectorAll("div[class*='dialog']")]
+        // Red dialog by class name
+        const byClass = [...document.querySelectorAll("div[class*='dialog']")]
             .find(d => /red/i.test(d.className));
+        if (byClass) return byClass;
+
+        // Fallback: dialog containing typical "already in a fight" text
+        return [...document.querySelectorAll("div[class*='dialog']")]
+            .find(d => /already in a fight|in a fight with someone else/i.test(d.textContent)) || null;
     }
 
     function moveJoinFightButtonDown(btn) {
         if (!btn || btn.dataset.joinMoved) return;
-    
-        // Find the row the button is inside
+
         const row = btn.closest(".charge-row, .row, .clearfix, div");
         if (!row) return;
-    
+
         const nextRow = row.nextElementSibling;
         if (!nextRow) return;
-    
-        // Move the entire row down one slot
+
         nextRow.after(row);
-    
-        // Prevent repeated moves
-        btn.dataset.joinMoved = "1";
+        btn.dataset.joinMoved = '1';
     }
 
+    // ---------- Button state logic ----------
 
-function updateJoinFightButton(btn) {
-    if (!btn) return;
+    function updateJoinFightButton(btn) {
+        if (!btn) return;
 
-    const list = document.querySelector("ul.participants___cw7GQ");
-    if (!list) return;
+        const list = document.querySelector("ul.participants___cw7GQ");
+        if (!list) return;
 
-    const hasPlayers = list.querySelectorAll("li").length > 0;
-    const current = btn.textContent.trim().toLowerCase();
+        const hasPlayers = list.querySelectorAll("li").length > 0;
+        const current = btn.textContent.trim().toLowerCase();
 
-    if (hasPlayers) {
-        // RED state — someone is already in the fight
-        if (current !== "join fight") {
-            btn.textContent = "Join fight";
+        if (hasPlayers) {
+            // RED state — someone is already in the fight
+            if (current !== 'join fight') {
+                btn.textContent = 'Join fight';
+            }
+            btn.style.color = '#cc0000';
+
+            moveJoinFightButtonDown(btn);
+        } else {
+            // GREEN state — no participants
+            if (current !== 'save fight') {
+                btn.textContent = 'Save fight';
+            }
+            btn.style.color = '#00cc00';
+
+            // Allow movement again next time it goes red
+            delete btn.dataset.joinMoved;
         }
-        btn.style.color = "#cc0000";
-
-        // Move the button down one row so you don't accidentally click it
-        moveJoinFightButtonDown(btn);
-
-    } else {
-        // GREEN state — no participants
-        if (current !== "save fight") {
-            btn.textContent = "Save fight";
-        }
-        btn.style.color = "#00cc00";
-
-        // Reset movement so next red state can move it again
-        delete btn.dataset.joinMoved;
     }
-}
 
+    function attachStopOnUserClick(btn) {
+        if (!btn || btn.dataset.stopAttached) return;
 
-    function createRefreshButton() {
-        const btn = document.createElement("button");
-        btn.textContent = "Refresh";
-        btn.className = "torn-btn silver";
-        btn.style.marginTop = "12px";
-        btn.style.display = "block";
-        btn.style.marginLeft = "auto";
-        btn.style.marginRight = "auto";
-        btn.onclick = () => location.reload();
-        return btn;
+        btn.dataset.stopAttached = '1';
+
+        btn.addEventListener('click', (e) => {
+            // Only stop on real user clicks, not synthetic/programmatic ones
+            if (!e.isTrusted) return;
+            stopScript();
+        }, { once: true });
     }
+
+    // ---------- UI extras: countdown + refresh ----------
 
     function addCountdown(dialog) {
         if (!dialog || dialog.dataset.countdownAdded) return;
-        dialog.dataset.countdownAdded = "1";
+        dialog.dataset.countdownAdded = '1';
 
         let timeLeft = 30;
 
-        const countdown = document.createElement("div");
-        countdown.style.textAlign = "center";
-        countdown.style.fontWeight = "bold";
-        countdown.style.marginBottom = "6px";
-        countdown.style.fontSize = "16px";
-        countdown.style.color = "#0a0";
+        const countdown = document.createElement('div');
+        countdown.style.textAlign = 'center';
+        countdown.style.fontWeight = 'bold';
+        countdown.style.marginBottom = '6px';
+        countdown.style.fontSize = '16px';
+        countdown.style.color = '#0a0';
         countdown.textContent = `(${timeLeft})`;
 
         dialog.prepend(countdown);
 
-        const timer = setInterval(() => {
+        const timerId = setScriptInterval(() => {
             timeLeft--;
-            countdown.textContent = `(${timeLeft})`;
-
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                countdown.textContent = "FREE TARGET!";
+            if (timeLeft > 0) {
+                countdown.textContent = `(${timeLeft})`;
+            } else {
+                clearScriptInterval(timerId);
+                countdown.textContent = 'FREE TARGET!';
             }
         }, 1000);
     }
 
+    function createRefreshButton() {
+        const btn = document.createElement('button');
+        btn.textContent = 'Refresh';
+        btn.className = 'torn-btn silver';
+        btn.style.marginTop = '12px';
+        btn.style.display = 'block';
+        btn.style.marginLeft = 'auto';
+        btn.style.marginRight = 'auto';
+        btn.addEventListener('click', () => {
+            location.reload();
+        });
+        return btn;
+    }
+
     function addRefresh(dialog) {
         if (!dialog || dialog.dataset.refreshAdded) return;
-        dialog.dataset.refreshAdded = "1";
+        dialog.dataset.refreshAdded = '1';
 
         dialog.appendChild(createRefreshButton());
     }
 
-function init() {
-    observer = new MutationObserver(() => {
+    // ---------- Core observer logic ----------
+
+    function handleDomChange() {
         if (stopped) return;
 
         const fightBtn = findFightButton();
 
         if (fightBtn) {
-            // Stop script when user clicks ANY fight button
-            if (!fightBtn.dataset.stopAttached) {
-                fightBtn.dataset.stopAttached = "1";
-                fightBtn.addEventListener("click", stopScript, { once: true });
-            }
-
+            attachStopOnUserClick(fightBtn);
             updateJoinFightButton(fightBtn);
+
             const greenDialog = findGreenDialog();
-            if (greenDialog) addCountdown(greenDialog);
-
-        } else {
-            const redDialog = findRedDialog();
-            if (redDialog) addRefresh(redDialog);
+            if (greenDialog) {
+                addCountdown(greenDialog);
+            }
         }
-    });
 
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Initial run
-    const fightBtn = findFightButton();
-    if (fightBtn) {
-        fightBtn.addEventListener("click", stopScript, { once: true });
-        updateJoinFightButton(fightBtn);
-        const greenDialog = findGreenDialog();
-        if (greenDialog) addCountdown(greenDialog);
-    } else {
         const redDialog = findRedDialog();
-        if (redDialog) addRefresh(redDialog);
+        if (redDialog) {
+            addRefresh(redDialog);
+        }
     }
-}
 
+    function initObserver() {
+        if (observer) return;
 
-    init();
+        observer = new MutationObserver(() => {
+            handleDomChange();
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // ---------- Init ----------
+
+    function init() {
+        if (stopped) return;
+
+        handleDomChange();
+        initObserver();
+
+        console.log('[Fight Sitter] Initialized.');
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+        init();
+    }
 })();
-
-
-
-
