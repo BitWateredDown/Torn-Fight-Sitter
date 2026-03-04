@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  30s countdown fight dialog timer, refresh button if fight unavailable, changes Join Fight to save fight attacking an attacker
-// @author       Copilot mostly
+// @author       Copilot mostly and Mr_Chips
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/BitWateredDown/Torn-Fight-Sitter/refs/heads/main/Fight_sitter.js
@@ -12,6 +12,21 @@
 
 (function() {
     'use strict';
+    let observer = null;
+    let stopped = false;
+    
+    function stopScript() {
+        if (stopped) return;
+        stopped = true;
+    
+        if (observer) observer.disconnect();
+    
+        // Remove all intervals created by this script
+        const highest = setInterval(() => {}, 0);
+        for (let i = 0; i <= highest; i++) clearInterval(i);
+    
+        console.log("Fight Sitter stopped.");
+    }
 
     function findFightButton() {
         return (
@@ -129,39 +144,48 @@ function updateJoinFightButton(btn) {
         dialog.appendChild(createRefreshButton());
     }
 
-    function init() {
-        const observer = new MutationObserver(() => {
-            const fightBtn = findFightButton();
+function init() {
+    observer = new MutationObserver(() => {
+        if (stopped) return;
 
-            if (fightBtn) {
-                // moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
-                //updateJoinFightButton(fightBtn); // <--- NEW
-                if (fightBtn) updateJoinFightButton(fightBtn);
-                const greenDialog = findGreenDialog();
-                if (greenDialog) addCountdown(greenDialog);
-            } else {
-                const redDialog = findRedDialog();
-                if (redDialog) addRefresh(redDialog);
-            }
-        });
-
-        observer.observe(document.body, { childList: true, subtree: true });
-
-        // Run immediately on load
         const fightBtn = findFightButton();
+
         if (fightBtn) {
-            // moveJoinFightButtonDown(fightBtn); // <-- NEW BEHAVIOUR
-            updateJoinFightButton(fightBtn); // <--- NEW
+            // Stop script when user clicks ANY fight button
+            if (!fightBtn.dataset.stopAttached) {
+                fightBtn.dataset.stopAttached = "1";
+                fightBtn.addEventListener("click", stopScript, { once: true });
+            }
+
+            updateJoinFightButton(fightBtn);
             const greenDialog = findGreenDialog();
             if (greenDialog) addCountdown(greenDialog);
+
         } else {
             const redDialog = findRedDialog();
             if (redDialog) addRefresh(redDialog);
         }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Initial run
+    const fightBtn = findFightButton();
+    if (fightBtn) {
+        fightBtn.addEventListener("click", stopScript, { once: true });
+        updateJoinFightButton(fightBtn);
+        const greenDialog = findGreenDialog();
+        if (greenDialog) addCountdown(greenDialog);
+    } else {
+        const redDialog = findRedDialog();
+        if (redDialog) addRefresh(redDialog);
     }
+}
+
 
     init();
 })();
+
 
 
 
