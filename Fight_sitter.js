@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      3.2
+// @version      3.3
 // @description  30s countdown fight dialog timer, refresh button if fight unavailable, changes Join Fight to save fight attacking an attacker
 // @author       Copilot mostly and Mr_Chips
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
@@ -106,34 +106,29 @@
     if (hasPlayers) {
         btn.style.color = "#cc0000";
     
-        // Two-click confirmation system
+        // Two-click confirmation system (non-blocking)
         if (!btn.dataset.confirm) {
-            // First click: require confirmation
             btn.dataset.confirm = "1";
             btn.textContent = "Are you sure?";
-            btn.addEventListener("click", (e) => {
-                if (!e.isTrusted) return;
-                // Second click: allow real action
-                delete btn.dataset.confirm;
-            }, { once: true });
     
-            // Prevent the first click from triggering the fight
-            btn.addEventListener("click", (e) => {
+            // Reset back to Join fight after 2 seconds if user doesn't click again
+            setTimeout(() => {
                 if (btn.dataset.confirm === "1") {
-                    e.stopImmediatePropagation();
-                    e.preventDefault();
+                    delete btn.dataset.confirm;
+                    btn.textContent = "Join fight";
                 }
-            }, { capture: true, once: true });
+            }, 2000);
     
             return;
         }
     
-        // If already confirmed, show normal red Join Fight
+        // Second click: confirmed
+        delete btn.dataset.confirm;
         btn.textContent = "Join fight";
         return;
     }
 
-
+    
     // --- GREEN state: no players, but only modify if it was originally a join button ---
     if (text === "join fight") {
         btn.textContent = "Save fight";
@@ -263,6 +258,7 @@ function addCountdown(dialog, fightBtn) {
         init();
     }
 })();
+
 
 
 
