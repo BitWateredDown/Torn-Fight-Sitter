@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  30s countdown fight dialog timer, refresh button if fight unavailable, changes Join Fight to save fight attacking an attacker
 // @author       Copilot mostly and Mr_Chips
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
@@ -96,34 +96,42 @@
 
     // ---------- Button state logic ----------
 
-    function updateJoinFightButton(btn) {
-        if (!btn) return;
+   function updateJoinFightButton(btn) {
+    if (!btn) return;
 
-        const list = document.querySelector("ul.participants___cw7GQ");
-        if (!list) return;
+    const rawText = btn.textContent.trim();
+    const text = rawText.toLowerCase();
 
-        const hasPlayers = list.querySelectorAll("li").length > 0;
-        const current = btn.textContent.trim().toLowerCase();
+    const list = document.querySelector("ul.participants___cw7GQ");
+    if (!list) return;
 
-        if (hasPlayers) {
-            // RED state — someone is already in the fight
-            if (current !== 'join fight') {
-                btn.textContent = 'Join fight';
-            }
-            btn.style.color = '#cc0000';
+    const hasPlayers = list.querySelectorAll("li").length > 0;
 
-            moveJoinFightButtonDown(btn);
-        } else {
-            // GREEN state — no participants
-            if (current !== 'save fight') {
-                btn.textContent = 'Save fight';
-            }
-            btn.style.color = '#00cc00';
-
-            // Allow movement again next time it goes red
-            delete btn.dataset.joinMoved;
-        }
+    // --- RULE 1: Never modify "Start Fight" ---
+    if (text === "start fight") {
+        btn.style.color = ""; // reset any styling
+        delete btn.dataset.joinMoved;
+        return;
     }
+
+    // --- RED state: players present ---
+    if (hasPlayers) {
+        if (text !== "join fight") {
+            btn.textContent = "Join fight";
+        }
+        btn.style.color = "#cc0000";
+        moveJoinFightButtonDown(btn);
+        return;
+    }
+
+    // --- GREEN state: no players, but only modify if it was originally a join button ---
+    if (text === "join fight") {
+        btn.textContent = "Save fight";
+        btn.style.color = "#00cc00";
+        delete btn.dataset.joinMoved;
+    }
+}
+
 
     function attachStopOnUserClick(btn) {
         if (!btn || btn.dataset.stopAttached) return;
@@ -139,32 +147,37 @@
 
     // ---------- UI extras: countdown + refresh ----------
 
-    function addCountdown(dialog) {
-        if (!dialog || dialog.dataset.countdownAdded) return;
-        dialog.dataset.countdownAdded = '1';
+function addCountdown(dialog, fightBtn) {
+    if (!dialog || dialog.dataset.countdownAdded) return;
 
-        let timeLeft = 30;
+    const text = fightBtn.textContent.trim().toLowerCase();
+    if (text !== "start fight") return;  // Only show countdown for Start Fight
 
-        const countdown = document.createElement('div');
-        countdown.style.textAlign = 'center';
-        countdown.style.fontWeight = 'bold';
-        countdown.style.marginBottom = '6px';
-        countdown.style.fontSize = '16px';
-        countdown.style.color = '#0a0';
-        countdown.textContent = `(${timeLeft})`;
+    dialog.dataset.countdownAdded = "1";
 
-        dialog.prepend(countdown);
+    let timeLeft = 30;
 
-        const timerId = setScriptInterval(() => {
-            timeLeft--;
-            if (timeLeft > 0) {
-                countdown.textContent = `(${timeLeft})`;
-            } else {
-                clearScriptInterval(timerId);
-                countdown.textContent = 'FREE TARGET!';
-            }
-        }, 1000);
-    }
+    const countdown = document.createElement("div");
+    countdown.style.textAlign = "center";
+    countdown.style.fontWeight = "bold";
+    countdown.style.marginBottom = "6px";
+    countdown.style.fontSize = "16px";
+    countdown.style.color = "#0a0";
+    countdown.textContent = `(${timeLeft})`;
+
+    dialog.prepend(countdown);
+
+    const timerId = setScriptInterval(() => {
+        timeLeft--;
+        if (timeLeft > 0) {
+            countdown.textContent = `(${timeLeft})`;
+        } else {
+            clearScriptInterval(timerId);
+            countdown.textContent = "FREE TARGET!";
+        }
+    }, 1000);
+}
+
 
     function createRefreshButton() {
         const btn = document.createElement('button');
@@ -200,7 +213,7 @@
 
             const greenDialog = findGreenDialog();
             if (greenDialog) {
-                addCountdown(greenDialog);
+                addCountdown(greenDialog, fightBtn);
             }
         }
 
@@ -240,3 +253,4 @@
         init();
     }
 })();
+
