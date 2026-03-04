@@ -81,19 +81,6 @@
             .find(d => /already in a fight|in a fight with someone else/i.test(d.textContent)) || null;
     }
 
-    function moveJoinFightButtonDown(btn) {
-        if (!btn || btn.dataset.joinMoved) return;
-
-        const row = btn.closest(".charge-row, .row, .clearfix, div");
-        if (!row) return;
-
-        const nextRow = row.nextElementSibling;
-        if (!nextRow) return;
-
-        nextRow.after(row);
-        btn.dataset.joinMoved = '1';
-    }
-
     // ---------- Button state logic ----------
 
    function updateJoinFightButton(btn) {
@@ -114,15 +101,38 @@
         return;
     }
 
+
     // --- RED state: players present ---
     if (hasPlayers) {
-        if (text !== "join fight") {
-            btn.textContent = "Join fight";
-        }
         btn.style.color = "#cc0000";
-        moveJoinFightButtonDown(btn);
+    
+        // Two-click confirmation system
+        if (!btn.dataset.confirm) {
+            // First click: require confirmation
+            btn.dataset.confirm = "1";
+            btn.textContent = "Are you sure?";
+            btn.addEventListener("click", (e) => {
+                if (!e.isTrusted) return;
+                // Second click: allow real action
+                delete btn.dataset.confirm;
+            }, { once: true });
+    
+            // Prevent the first click from triggering the fight
+            btn.addEventListener("click", (e) => {
+                if (btn.dataset.confirm === "1") {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                }
+            }, { capture: true, once: true });
+    
+            return;
+        }
+    
+        // If already confirmed, show normal red Join Fight
+        btn.textContent = "Join fight";
         return;
     }
+
 
     // --- GREEN state: no players, but only modify if it was originally a join button ---
     if (text === "join fight") {
@@ -253,4 +263,5 @@ function addCountdown(dialog, fightBtn) {
         init();
     }
 })();
+
 
