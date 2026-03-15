@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fight Sitter
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.4
 // @description  30s countdown fight dialog timer, refresh button if fight unavailable, changes Join Fight to save fight attacking an attacker
 // @author       Copilot mostly and Mr_Chips
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=*
