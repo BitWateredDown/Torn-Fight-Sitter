@@ -83,7 +83,7 @@
 
     // ---------- Button state logic ----------
 
-   function updateJoinFightButton(btn) {
+  function updateJoinFightButton(btn) {
     if (!btn) return;
 
     const rawText = btn.textContent.trim();
@@ -101,34 +101,13 @@
         return;
     }
 
-
     // --- RED state: players present ---
     if (hasPlayers) {
         btn.style.color = "#cc0000";
-    
-        // Two-click confirmation system (non-blocking)
-        if (!btn.dataset.confirm) {
-            btn.dataset.confirm = "1";
-            btn.textContent = "Are you sure?";
-    
-            // Reset back to Join fight after 2 seconds if user doesn't click again
-            setTimeout(() => {
-                if (btn.dataset.confirm === "1") {
-                    delete btn.dataset.confirm;
-                    btn.textContent = "Join fight";
-                }
-            }, 2000);
-    
-            return;
-        }
-    
-        // Second click: confirmed
-        delete btn.dataset.confirm;
-        btn.textContent = "Join fight";
+        btn.textContent = "Join fight";   // single click only
         return;
     }
 
-    
     // --- GREEN state: no players, but only modify if it was originally a join button ---
     if (text === "join fight") {
         btn.textContent = "Save fight";
@@ -137,18 +116,6 @@
     }
 }
 
-
-    function attachStopOnUserClick(btn) {
-        if (!btn || btn.dataset.stopAttached) return;
-
-        btn.dataset.stopAttached = '1';
-
-        btn.addEventListener('click', (e) => {
-            // Only stop on real user clicks, not synthetic/programmatic ones
-            if (!e.isTrusted) return;
-            stopScript();
-        }, { once: true });
-    }
 
     // ---------- UI extras: countdown + refresh ----------
 
