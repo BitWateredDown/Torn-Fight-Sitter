@@ -112,7 +112,7 @@
     if (text === "join fight") {
         btn.textContent = "Save fight";
         btn.style.color = "#00cc00";
-        delete btn.dataset.joinMoved;
+        return;
     }
 }
 
